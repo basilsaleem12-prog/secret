@@ -1,0 +1,288 @@
+// --------------------------------------------
+// DATABASE SETUP
+// --------------------------------------------
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  //directUrl = env("DIRECT_URL")
+}
+
+// --------------------------------------------
+// MODELS
+// --------------------------------------------
+
+// 1️⃣ Profiles (Linked with Supabase Auth)
+model Profile {
+  id         String   @id @default(uuid())
+  userId     String   @unique // from Supabase auth.users.id
+  fullName   String?
+  email      String?  @unique
+  avatarUrl  String?
+  bio        String?
+  skills     String[] @default([])
+  interests  String[] @default([])
+  role       Role     @default(SEEKER)
+  department String?
+  year       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  jobs          Job[]          @relation("UserJobs")
+  applications  Application[]
+  bookmarks     Bookmark[]
+  messagesSent  Message[]      @relation("MessagesSent")
+  messagesRecv  Message[]      @relation("MessagesReceived")
+  resumes       Resume[]       @relation("UserResumes")
+  notifications Notification[]
+  JobAnalytics  JobAnalytics[]
+  callRequestsSent     CallRequest[] @relation("CallRequester")
+  callRequestsReceived CallRequest[] @relation("CallReceiver")
+
+  @@index([userId])
+}
+
+// 2️⃣ Jobs (Finder Posts)
+model Job {
+  id                String    @id @default(uuid())
+  title             String
+  type              JobType
+  description       String
+  requirements      String? // Skills/requirements
+  duration          String? // Timeline/duration
+  compensation      String? // Payment/rewards (optional)
+  location          String? // Remote/On-campus/Hybrid
+  teamSize          String? // Team size needed
+  tags              String[]
+  status            JobStatus @default(PENDING) // Approval status
+  isDraft           Boolean   @default(true) // Default to draft
+  isFilled          Boolean   @default(false) // Mark when position filled
+  isPublished       Boolean   @default(false) // Published status
+  views             Int       @default(0)
+  applicationsCount Int       @default(0)
+  rejectionReason   String? // Reason if rejected by admin
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  publishedAt       DateTime? // When it was published
+  approvedAt        DateTime? // When admin approved
+  approvedBy        String? // Admin who approved
+  
+  // Payment fields
+  isPaid            Boolean   @default(false) // Whether job poster paid for this job
+  paymentAmount     Float?    // Amount paid by job poster (in dollars)
+  paymentCurrency   String    @default("USD")
+  stripePaymentId   String?   // Stripe payment intent ID
+  paidAt            DateTime? // When payment was made
+
+  // Relations
+  createdById  String
+  createdBy    Profile        @relation("UserJobs", fields: [createdById], references: [id])
+  applications Application[]
+  analytics    JobAnalytics[]
+  bookmarks    Bookmark[]
+  Message      Message[]
+  callRequests CallRequest[]
+
+  @@index([createdById])
+  @@index([type])
+  @@index([status])
+  @@index([isPublished, isFilled])
+}
+
+// 3️⃣ Applications (Seeker applies to Finder jobs)
+model Application {
+  id          String            @id @default(uuid())
+  jobId       String
+  applicantId String
+  status      ApplicationStatus @default(PENDING)
+  proposal    String?           @db.Text // Cover letter/proposal
+  resumeUrl   String?           // URL/path to resume file
+  resumeName  String?           // Original file name
+  matchScore  Int?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  job          Job           @relation(fields: [jobId], references: [id])
+  applicant    Profile       @relation(fields: [applicantId], references: [id])
+  callRequests CallRequest[]
+
+  @@unique([jobId, applicantId])
+}
+
+// Resume Storage (User's uploaded resumes in Supabase Storage)
+model Resume {
+  id          String   @id @default(uuid())
+  userId      String
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  storagePath String   // Path in Supabase Storage bucket
+  publicUrl   String   // Public URL for file access
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user Profile @relation("UserResumes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// 4️⃣ Messages (Real-time Chat)
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  jobId      String?
+  content    String
+  createdAt  DateTime @default(now())
+  read       Boolean  @default(false)
+
+  sender   Profile @relation("MessagesSent", fields: [senderId], references: [id])
+  receiver Profile @relation("MessagesReceived", fields: [receiverId], references: [id])
+  job      Job?    @relation(fields: [jobId], references: [id])
+}
+
+// 5️⃣ Bookmarks (Saved Jobs)
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id])
+  job  Job     @relation(fields: [jobId], references: [id])
+
+  @@unique([userId, jobId])
+}
+
+// 6️⃣ Video Call Requests
+model CallRequest {
+  id            String           @id @default(uuid())
+  jobId         String
+  requesterId   String // Job seeker who requests the call
+  receiverId    String // Job poster who receives the request
+  applicationId String? // Optional: link to specific application
+  status        CallRequestStatus @default(PENDING)
+  
+  // Scheduling
+  requestedTime DateTime? // Preferred time requested by seeker
+  scheduledTime DateTime? // Confirmed time after acceptance
+  
+  // 100ms Room details
+  roomId        String? // 100ms room ID
+  roomName      String? // 100ms room name
+  
+  // Messages
+  message       String? // Message from requester
+  rejectReason  String? // Reason for rejection (if rejected)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  acceptedAt    DateTime?
+  rejectedAt    DateTime?
+  completedAt   DateTime? // When the call was completed
+  
+  // Relations
+  job         Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  requester   Profile     @relation("CallRequester", fields: [requesterId], references: [id])
+  receiver    Profile     @relation("CallReceiver", fields: [receiverId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
+  
+  @@index([jobId])
+  @@index([requesterId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+// 6️⃣ Job Analytics (View Tracking)
+model JobAnalytics {
+  id       String   @id @default(uuid())
+  jobId    String
+  userId   String
+  viewedAt DateTime @default(now())
+
+  job  Job     @relation(fields: [jobId], references: [id])
+  user Profile @relation(fields: [userId], references: [id])
+
+  @@unique([jobId, userId])
+}
+
+// 7️⃣ Notifications (In-App or Push)
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // Notification type (will migrate to enum later)
+  title     String   @default("Notification") // Default for existing records
+  content   String
+  link      String? // Link to related resource (e.g., /jobs/123, /my-applications)
+  metadata  String? // JSON string for additional data
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// --------------------------------------------
+// ENUMS
+// --------------------------------------------
+
+enum Role {
+  FINDER
+  SEEKER
+}
+
+enum JobType {
+  ACADEMIC_PROJECT // Academic Projects
+  STARTUP_COLLABORATION // Startup/Collaborations
+  PART_TIME_JOB // Part-time Jobs
+  COMPETITION_HACKATHON // Competitions/Hackathons Teams Search
+}
+
+enum ApplicationStatus {
+  PENDING
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+}
+
+enum JobStatus {
+  PENDING // Waiting for admin approval
+  APPROVED // Approved by admin and can be published
+  REJECTED // Rejected by admin
+  POSTED // Approved and published
+}
+
+enum CallRequestStatus {
+  PENDING // Waiting for job poster to respond
+  ACCEPTED // Job poster accepted, call can be scheduled
+  REJECTED // Job poster rejected the request
+  COMPLETED // Call was completed
+  CANCELLED // Request was cancelled by either party
+}
+
+enum NotificationType {
+  JOB_POSTED // New job matching user's interests/skills
+  JOB_APPROVED // User's job was approved by admin
+  JOB_REJECTED // User's job was rejected by admin
+  APPLICATION_RECEIVED // Job poster received a new application
+  APPLICATION_SHORTLISTED // User's application was shortlisted
+  APPLICATION_ACCEPTED // User's application was accepted
+  APPLICATION_REJECTED // User's application was rejected
+  JOB_FILLED // Job that user applied to has been filled
+  CALL_REQUEST_RECEIVED // User received a video call request
+  CALL_REQUEST_ACCEPTED // User's call request was accepted
+  CALL_REQUEST_REJECTED // User's call request was rejected
+  MESSAGE_RECEIVED // User received a new message
+  PROFILE_VIEW // Someone viewed user's profile
+  BOOKMARK_ADDED // Someone bookmarked user's job
+}
