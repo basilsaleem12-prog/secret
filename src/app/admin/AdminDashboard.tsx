@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, JSX } from 'react'
+import { useState, useEffect, useCallback, useRef, JSX } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { isAdminEmail } from '@/lib/admin/config'
+import { useToast } from '@/components/ui/toast'
 import { 
   Users, 
   FileText, 
@@ -81,6 +82,7 @@ type JobStatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type JobTypeFilter = 'ALL' | 'ACADEMIC_PROJECT' | 'STARTUP_COLLABORATION' | 'PART_TIME_JOB' | 'COMPETITION_HACKATHON';
 
 export function AdminDashboard({ userId }: AdminDashboardProps) {
+  const toast = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
   const [jobCounts, setJobCounts] = useState<JobCounts>({
@@ -104,38 +106,49 @@ export function AdminDashboard({ userId }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [rejectionReason, setRejectionReason] = useState<{ [key: string]: string }>({})
   const [processingJobId, setProcessingJobId] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
 
-  useEffect(() => {
-    fetchUsers()
-    fetchJobs()
-  }, [jobStatusFilter, jobTypeFilter])
-
-  const fetchUsers = async (): Promise<void> => {
+  const fetchUsers = useCallback(async (): Promise<void> => {
     try {
       const response = await fetch('/api/admin/users')
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users)
+        setUsers(data.users || [])
       }
     } catch (error) {
       console.error('Error fetching users:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchJobs = async (): Promise<void> => {
+  const fetchJobs = useCallback(async (): Promise<void> => {
     try {
       const response = await fetch(`/api/admin/jobs?status=${jobStatusFilter}&type=${jobTypeFilter}`)
       if (response.ok) {
         const data = await response.json()
-        setJobs(data.jobs)
-        setJobCounts(data.counts)
+        setJobs(data.jobs || [])
+        setJobCounts(data.counts || {
+          status: { ALL: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 },
+          type: { ALL: 0, ACADEMIC_PROJECT: 0, STARTUP_COLLABORATION: 0, PART_TIME_JOB: 0, COMPETITION_HACKATHON: 0 }
+        })
       }
     } catch (error) {
       console.error('Error fetching jobs:', error)
     }
-  }
+  }, [jobStatusFilter, jobTypeFilter])
+
+  useEffect(() => {
+    if (hasFetchedRef.current) {
+      // Only fetch jobs when filters change, not on initial mount
+      fetchJobs()
+    } else {
+      // Initial fetch
+      hasFetchedRef.current = true
+      fetchUsers()
+      fetchJobs()
+    }
+  }, [fetchJobs, fetchUsers])
 
   const handleJobAction = async (jobId: string, action: 'approve' | 'reject'): Promise<void> => {
     setProcessingJobId(jobId)
@@ -150,15 +163,21 @@ export function AdminDashboard({ userId }: AdminDashboardProps) {
       })
 
       if (response.ok) {
-        await fetchJobs()
+        const data = await response.json()
+        fetchJobs()
         setRejectionReason((prev) => ({ ...prev, [jobId]: '' }))
+        if (action === 'approve') {
+          toast.success(`Job approved successfully! Email notification sent to job poster.`)
+        } else {
+          toast.success(`Job rejected. Email notification sent to job poster.`)
+        }
       } else {
         const data = await response.json()
-        alert(data.error || 'Failed to process job')
+        toast.error(data.error || 'Failed to process job')
       }
     } catch (error) {
       console.error('Error processing job:', error)
-      alert('Failed to process job')
+      toast.error('Failed to process job')
     } finally {
       setProcessingJobId(null)
     }

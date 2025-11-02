@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -18,8 +18,9 @@ export default function NotificationsPageClient(): JSX.Element {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const hasFetchedRef = useRef(false);
 
-  const fetchNotifications = async (): Promise<void> => {
+  const fetchNotifications = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const url = filter === 'unread' ? '/api/notifications?unread=true' : '/api/notifications';
@@ -33,11 +34,11 @@ export default function NotificationsPageClient(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     fetchNotifications();
-  }, [filter]);
+  }, [fetchNotifications]);
 
   const markAsRead = async (notificationId: string): Promise<void> => {
     try {
@@ -99,7 +100,12 @@ export default function NotificationsPageClient(): JSX.Element {
     }
     
     if (notification.link) {
-      window.location.href = notification.link;
+      // Open video call links in a new tab, others in same tab
+      if (notification.link.startsWith('/video-call/')) {
+        window.open(notification.link, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = notification.link;
+      }
     }
   };
 

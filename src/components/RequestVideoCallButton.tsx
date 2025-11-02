@@ -33,15 +33,18 @@ export function RequestVideoCallButton({
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  // If there's already a request, show status
-  if (existingRequest) {
-    const statusColors: Record<string, string> = {
-      PENDING: 'bg-yellow-50 border-yellow-300 text-yellow-800',
-      ACCEPTED: 'bg-green-50 border-green-300 text-green-800',
-      REJECTED: 'bg-red-50 border-red-300 text-red-800',
-      COMPLETED: 'bg-gray-50 border-gray-300 text-gray-800',
-      CANCELLED: 'bg-gray-50 border-gray-300 text-gray-800',
-    }
+    // If there's already a request, show status
+    if (existingRequest) {
+      const getStatusStyle = (status: string) => {
+        const styles: Record<string, { bg: string; text: string; border: string }> = {
+          PENDING: { bg: 'rgba(251, 191, 36, 0.2)', text: '#F59E0B', border: '#F59E0B' },
+          ACCEPTED: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22C55E', border: '#22C55E' },
+          REJECTED: { bg: 'rgba(239, 68, 68, 0.2)', text: '#EF4444', border: '#EF4444' },
+          COMPLETED: { bg: 'rgba(107, 114, 128, 0.2)', text: '#6B7280', border: '#6B7280' },
+          CANCELLED: { bg: 'rgba(107, 114, 128, 0.2)', text: '#6B7280', border: '#6B7280' },
+        }
+        return styles[status] || styles.PENDING
+      }
 
     // Special display for accepted calls
     if (existingRequest.status === 'ACCEPTED' && existingRequest.roomId) {
@@ -52,27 +55,42 @@ export function RequestVideoCallButton({
               <CheckCircle2 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-green-800">Video Call Scheduled</h3>
-              <p className="text-sm text-green-700">Your interview request has been accepted!</p>
+              <h3 className="text-lg font-semibold" style={{ color: '#22C55E' }}>Video Call Scheduled</h3>
+              <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>Your interview request has been accepted!</p>
             </div>
           </div>
 
           {/* Video Call Link */}
-          <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
-            <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
+          <div 
+            className="p-4 rounded-lg border-2"
+            style={{
+              background: 'rgba(34, 197, 94, 0.1)',
+              borderColor: '#22C55E',
+            }}
+          >
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#22C55E' }}>
               <Video className="w-4 h-4" />
               Video Call Link
             </h4>
-            <p className="text-xs text-green-700 mb-3">
+            <p className="text-xs mb-3" style={{ color: 'var(--foreground-muted)' }}>
               Share this link or click the button below to join:
             </p>
             <div className="flex gap-2 mb-3">
               <input
                 type="text"
-                value={`${window.location.origin}/video-call/${existingRequest.id}`}
+                value={(() => {
+                  if (typeof window === 'undefined') return `/video-call/${existingRequest.id}`
+                  return `${window.location.origin}/video-call/${existingRequest.id}`
+                })()}
                 readOnly
-                className="flex-1 px-3 py-2 text-sm bg-white border border-green-300 rounded font-mono"
+                className="flex-1 px-3 py-2 text-sm rounded font-mono"
                 onClick={(e) => e.currentTarget.select()}
+                suppressHydrationWarning
+                style={{
+                  background: 'var(--background)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)',
+                }}
               />
               <Button
                 onClick={() => {
@@ -87,7 +105,10 @@ export function RequestVideoCallButton({
               </Button>
             </div>
             <Button
-              onClick={() => router.push(`/video-call/${existingRequest.id}`)}
+              onClick={() => {
+                const url = `/video-call/${existingRequest.id}`
+                window.open(url, '_blank', 'noopener,noreferrer')
+              }}
               className="w-full btn-gradient"
             >
               <Video className="w-4 h-4 mr-2" />
@@ -96,8 +117,8 @@ export function RequestVideoCallButton({
           </div>
 
           {existingRequest.scheduledTime && (
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Calendar className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
+              <Calendar className="w-4 h-4" style={{ color: '#22C55E' }} />
               <span>Scheduled: {new Date(existingRequest.scheduledTime).toLocaleString()}</span>
             </div>
           )}
@@ -106,8 +127,16 @@ export function RequestVideoCallButton({
     }
 
     // Default status display for other states
+    const statusStyle = getStatusStyle(existingRequest.status)
     return (
-      <div className={`inline-flex items-center gap-2 px-4 py-2 border-2 rounded-lg ${statusColors[existingRequest.status]}`}>
+      <div 
+        className="inline-flex items-center gap-2 px-4 py-2 border-2 rounded-lg"
+        style={{
+          background: statusStyle.bg,
+          borderColor: statusStyle.border,
+          color: statusStyle.text,
+        }}
+      >
         <Video className="w-4 h-4" />
         <div>
           <p className="font-medium text-sm">Video Call {existingRequest.status}</p>
@@ -190,8 +219,13 @@ export function RequestVideoCallButton({
         </h3>
         <button
           onClick={() => setShowForm(false)}
-          className="p-1 hover:bg-gray-100 rounded"
+          className="p-1 rounded transition-colors"
           disabled={loading}
+          style={{
+            color: 'var(--foreground-muted)',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
         >
           <X className="w-5 h-5" />
         </button>
@@ -214,6 +248,11 @@ export function RequestVideoCallButton({
             className="glass-input w-full min-h-[100px]"
             placeholder="Introduce yourself and explain why you'd like to have a video interview..."
             disabled={loading}
+            style={{
+              background: 'var(--background)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
           />
         </div>
 
@@ -230,6 +269,11 @@ export function RequestVideoCallButton({
             className="glass-input"
             min={new Date().toISOString().slice(0, 16)}
             disabled={loading}
+            style={{
+              background: 'var(--background)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
           />
           <p className="text-xs mt-1" style={{ color: 'var(--foreground-muted)' }}>
             Suggest a time that works for you. The job poster will confirm or propose another time.
@@ -237,7 +281,14 @@ export function RequestVideoCallButton({
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+          <div 
+            className="rounded-lg p-3 text-sm border"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: '#EF4444',
+              color: '#EF4444',
+            }}
+          >
             {error}
           </div>
         )}

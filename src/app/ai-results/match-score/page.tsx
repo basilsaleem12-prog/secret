@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, Target, TrendingUp, AlertCircle, X } from 'lucide-react';
+import { Loader2, Sparkles, Target, TrendingUp, AlertCircle, CheckCircle2, Lightbulb, ArrowLeft } from 'lucide-react';
 import MatchScoreBadge from '@/components/MatchScoreBadge';
+import { Navbar } from '@/components/Navbar';
 
 export default function MatchScoreResultsPage() {
   const searchParams = useSearchParams();
@@ -16,11 +17,12 @@ export default function MatchScoreResultsPage() {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (jobId) {
-      fetchMatchScore();
-    }
+    if (!jobId || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchMatchScore();
   }, [jobId]);
 
   const fetchMatchScore = async () => {
@@ -46,12 +48,25 @@ export default function MatchScoreResultsPage() {
     }
   };
 
+  const handleBack = () => {
+    if (jobId) {
+      router.push(`/jobs/${jobId}`);
+    } else {
+      router.back();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-[#1E3A8A] mb-4" />
-          <p className="text-lg">Calculating your match score...</p>
+      <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: 'var(--accent)' }} />
+            <p className="text-lg font-medium" style={{ color: 'var(--foreground)' }}>
+              Calculating your match score...
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -59,52 +74,82 @@ export default function MatchScoreResultsPage() {
 
   if (error || !result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error || 'Failed to calculate match score'}</p>
-          <Button onClick={() => router.back()} className="btn-gradient">
-            Go Back
-          </Button>
+      <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
+          <div className="max-w-md w-full text-center glass-card p-8">
+            <AlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: '#EF4444' }} />
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Error</h2>
+            <p className="mb-6" style={{ color: 'var(--foreground-muted)' }}>
+              {error || 'Failed to calculate match score'}
+            </p>
+            <Button onClick={handleBack} className="btn-gradient">
+              Go Back
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+      <Navbar />
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4"
+            onClick={handleBack}
+            className="mb-6 hover:bg-transparent"
+            style={{ color: 'var(--foreground-muted)' }}
           >
-            ← Back
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Job
           </Button>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-full bg-purple-100">
-              <Target className="w-8 h-8 text-purple-600" />
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+            <div 
+              className="p-4 rounded-full shrink-0"
+              style={{ 
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))',
+                color: 'white'
+              }}
+            >
+              <Target className="w-8 h-8" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">Your Match Score</h1>
-              <Badge className="bg-linear-to-r from-purple-600 to-blue-600 text-white border-0 mt-2">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI-Powered
-              </Badge>
+            <div className="flex-1">
+              <h1 
+                className="text-3xl sm:text-4xl font-bold mb-3"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Your Match Score
+              </h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge 
+                  className="border-0 text-white px-3 py-1"
+                  style={{ 
+                    background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))'
+                  }}
+                >
+                  <Sparkles className="w-3 h-3 mr-1.5" />
+                  AI-Powered Analysis
+                </Badge>
+              </div>
             </div>
           </div>
-          <p className="text-lg text-gray-600">
-            For: <span className="font-semibold text-purple-700">{jobTitle}</span>
-          </p>
+          
+          {jobTitle && (
+            <p className="text-lg" style={{ color: 'var(--foreground-muted)' }}>
+              For: <span className="font-semibold" style={{ color: 'var(--accent)' }}>{jobTitle}</span>
+            </p>
+          )}
         </div>
 
         {/* Score Display */}
-        <div className="glass-card p-8 mb-6 text-center">
+        <div className="glass-card p-8 mb-8 text-center">
           <MatchScoreBadge score={result.score} size="lg" showLabel={true} />
-          <p className="text-sm mt-4 text-gray-600">
+          <p className="text-sm mt-4" style={{ color: 'var(--foreground-muted)' }}>
             AI-calculated compatibility based on your profile and this job
           </p>
         </div>
@@ -113,48 +158,98 @@ export default function MatchScoreResultsPage() {
         <div className="space-y-6">
           {/* AI Reasoning */}
           <div className="glass-card p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="p-2 rounded-full bg-blue-100 shrink-0">
-                <Sparkles className="w-6 h-6 text-blue-600" />
+            <div className="flex items-start gap-4">
+              <div 
+                className="p-3 rounded-full shrink-0"
+                style={{ 
+                  background: 'rgba(37, 99, 235, 0.1)',
+                  color: 'var(--accent)'
+                }}
+              >
+                <Sparkles className="w-6 h-6" />
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-blue-900 mb-2">AI Analysis</h2>
-                <p className="text-gray-700 leading-relaxed">{result.reasoning}</p>
+                <h2 
+                  className="text-xl font-bold mb-3"
+                  style={{ color: 'var(--foreground)' }}
+                >
+                  AI Analysis
+                </h2>
+                <p 
+                  className="leading-relaxed whitespace-pre-wrap"
+                  style={{ color: 'var(--foreground-muted)' }}
+                >
+                  {result.reasoning}
+                </p>
               </div>
             </div>
           </div>
 
           {/* Strengths */}
-          <div className="glass-card p-6">
-            <h2 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
-              <div className="p-1.5 rounded-full bg-green-100">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
-              Your Strengths for This Role
-            </h2>
-            <ul className="space-y-3">
-              {result.strengths.map((strength: string, idx: number) => (
-                <li key={idx} className="text-gray-800 flex items-start gap-3 pl-2">
-                  <span className="text-green-600 font-bold text-lg mt-0.5 shrink-0">✓</span>
-                  <span className="leading-relaxed">{strength}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {result.strengths && result.strengths.length > 0 && (
+            <div className="glass-card p-6">
+              <h2 
+                className="text-xl font-bold mb-4 flex items-center gap-2"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    color: '#22C55E'
+                  }}
+                >
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                Your Strengths for This Role
+              </h2>
+              <ul className="space-y-3">
+                {result.strengths.map((strength: string, idx: number) => (
+                  <li 
+                    key={idx} 
+                    className="flex items-start gap-3 pl-2"
+                    style={{ color: 'var(--foreground-muted)' }}
+                  >
+                    <CheckCircle2 
+                      className="w-5 h-5 mt-0.5 shrink-0" 
+                      style={{ color: '#22C55E' }}
+                    />
+                    <span className="leading-relaxed">{strength}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Gaps */}
           {result.gaps && result.gaps.length > 0 && (
             <div className="glass-card p-6">
-              <h2 className="text-xl font-bold text-orange-900 mb-4 flex items-center gap-2">
-                <div className="p-1.5 rounded-full bg-orange-100">
-                  <AlertCircle className="w-5 h-5 text-orange-600" />
+              <h2 
+                className="text-xl font-bold mb-4 flex items-center gap-2"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(249, 115, 22, 0.1)',
+                    color: '#F97316'
+                  }}
+                >
+                  <AlertCircle className="w-5 h-5" />
                 </div>
                 Areas to Highlight or Develop
               </h2>
               <ul className="space-y-3">
                 {result.gaps.map((gap: string, idx: number) => (
-                  <li key={idx} className="text-gray-800 flex items-start gap-3 pl-2">
-                    <span className="text-orange-600 font-bold text-lg mt-0.5 shrink-0">•</span>
+                  <li 
+                    key={idx} 
+                    className="flex items-start gap-3 pl-2"
+                    style={{ color: 'var(--foreground-muted)' }}
+                  >
+                    <div 
+                      className="w-2 h-2 rounded-full mt-2 shrink-0"
+                      style={{ background: '#F97316' }}
+                    />
                     <span className="leading-relaxed">{gap}</span>
                   </li>
                 ))}
@@ -163,23 +258,47 @@ export default function MatchScoreResultsPage() {
           )}
 
           {/* Recommendation */}
-          <div className="glass-card p-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl shrink-0">💡</span>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-purple-900 mb-2">AI Recommendation</h2>
-                <p className="text-gray-700 leading-relaxed">{result.recommendation}</p>
+          {result.recommendation && (
+            <div className="glass-card p-6">
+              <div className="flex items-start gap-4">
+                <div 
+                  className="p-3 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    color: '#A855F7'
+                  }}
+                >
+                  <Lightbulb className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h2 
+                    className="text-xl font-bold mb-3"
+                    style={{ color: 'var(--foreground)' }}
+                  >
+                    AI Recommendation
+                  </h2>
+                  <p 
+                    className="leading-relaxed whitespace-pre-wrap"
+                    style={{ color: 'var(--foreground-muted)' }}
+                  >
+                    {result.recommendation}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Action Buttons */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <Button
-              onClick={() => router.back()}
+              onClick={handleBack}
               variant="outline"
               className="flex-1"
               size="lg"
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
             >
               Go Back
             </Button>

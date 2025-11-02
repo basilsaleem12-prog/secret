@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { notifyJobFilled } from '@/lib/notifications/service'
 
 interface FillJobBody {
   isFilled: boolean
@@ -52,6 +53,13 @@ export async function POST(
         isFilled: body.isFilled,
       }
     })
+
+    // If job is marked as filled, notify applicants (non-blocking)
+    if (body.isFilled) {
+      notifyJobFilled(id, job.title, profile.id, request).catch(err => 
+        console.error('Failed to notify applicants about filled job:', err)
+      )
+    }
 
     return NextResponse.json({ 
       job: updatedJob,

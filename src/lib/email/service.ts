@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
+import { render } from '@react-email/render'
 import { SENDER_EMAIL, RESEND_API_KEY } from './config'
 import * as EmailTemplates from './templates'
+import * as React from 'react'
 
 // Extract components with proper typing
 const WelcomeEmail = (EmailTemplates as any).WelcomeEmail
@@ -20,7 +22,7 @@ const resend = new Resend(RESEND_API_KEY)
 interface SendEmailParams {
   to: string
   subject: string
-  html: string
+  html?: string
   react?: React.ReactElement | null
 }
 
@@ -30,40 +32,52 @@ interface SendEmailParams {
 export async function sendEmail({ to, subject, html, react = null }: SendEmailParams) {
   if (!RESEND_API_KEY) {
     console.warn(`Email not sent to ${to}: RESEND_API_KEY is not configured.`)
-    return { data: null, error: 'Email service not configured' }
+    return { success: false, data: null, error: 'Email service not configured', messageId: null }
   }
 
   try {
+    // If React component is provided, render it to HTML
+    let emailHtml = html || ''
+    if (react) {
+      try {
+        emailHtml = await render(react)
+      } catch (renderError) {
+        console.error('Error rendering React email component:', renderError)
+        return { success: false, data: null, error: 'Failed to render email template', messageId: null }
+      }
+    }
+
     const { data, error } = await resend.emails.send({
       from: SENDER_EMAIL,
       to: to,
       subject: subject,
-      html: html,
-      react: react,
+      html: emailHtml,
     })
 
     if (error) {
       console.error(`Failed to send email to ${to}:`, error)
-      return { data: null, error: error.message }
+      return { success: false, data: null, error: error.message, messageId: null }
     }
 
     console.log(`✅ Email sent successfully to ${to}. ID: ${data?.id}`)
-    return { data, error: null }
+    return { success: true, data, error: null, messageId: data?.id || null }
   } catch (error: any) {
     console.error(`❌ Unexpected error sending email to ${to}:`, error)
-    return { data: null, error: error.message || 'Unknown error' }
+    return { success: false, data: null, error: error.message || 'Unknown error', messageId: null }
   }
 }
 
 /**
  * Send welcome email on signup
  */
-export async function sendWelcomeEmail(to: string, userName: string) {
+export async function sendWelcomeEmail(to: string, userName: string, request?: Request) {
+  const { getAppUrl } = await import('@/lib/utils/url')
+  const appUrl = request ? getAppUrl(request) : (process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''))
+  
   return sendEmail({
     to,
     subject: 'Welcome to CampusConnect! 🎉',
-    react: WelcomeEmail({ userName }),
-    html: '',
+    react: React.createElement(WelcomeEmail, { userName, appUrl }),
   })
 }
 
@@ -77,20 +91,21 @@ export async function sendJobApprovalEmail(to: string, userName: string, jobTitl
   return sendEmail({
     to,
     subject: `Your Job "${jobTitle}" has been Approved! ✅`,
-    react: JobApprovalEmail({ userName, jobTitle, jobLink }),
-    html: '',
+    react: React.createElement(JobApprovedEmail, { userName, jobTitle, jobLink }),
   })
 }
 
 /**
  * Send job rejection email to job poster
  */
-export async function sendJobRejectionEmail(to: string, userName: string, jobTitle: string, rejectionReason: string) {
+export async function sendJobRejectionEmail(to: string, userName: string, jobTitle: string, rejectionReason: string, request?: Request) {
+  const { getAppUrl } = await import('@/lib/utils/url')
+  const appUrl = request ? getAppUrl(request) : (process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''))
+  
   return sendEmail({
     to,
     subject: `Update on Your Job "${jobTitle}" - Action Required ❌`,
-    react: JobRejectedEmail({ userName, jobTitle, rejectionReason }),
-    html: '',
+    react: React.createElement(JobRejectedEmail, { userName, jobTitle, rejectionReason, appUrl }),
   })
 }
 
@@ -101,8 +116,7 @@ export async function sendTestEmail(to: string) {
   return sendEmail({
     to,
     subject: 'CampusConnect Test Email 🧪',
-    react: TestEmail(),
-    html: '',
+    react: React.createElement(TestEmail),
   })
 }
 
@@ -124,8 +138,7 @@ export async function sendApplicationReceivedEmail(
   return sendEmail({
     to,
     subject: `New Application for "${jobTitle}" 📩`,
-    react: ApplicationReceivedEmail({ posterName, applicantName, jobTitle, applicationLink }),
-    html: '',
+    react: React.createElement(ApplicationReceivedEmail, { posterName, applicantName, jobTitle, applicationLink }),
   })
 }
 
@@ -153,8 +166,7 @@ export async function sendApplicationStatusEmail(
   return sendEmail({
     to,
     subject: `${statusLabels[status] || 'Application Update'} - ${jobTitle}`,
-    react: ApplicationStatusEmail({ applicantName, status, jobTitle, jobLink }),
-    html: '',
+    react: React.createElement(ApplicationStatusEmail, { applicantName, status, jobTitle, jobLink }),
   })
 }
 
@@ -176,8 +188,7 @@ export async function sendVideoCallRequestEmail(
   return sendEmail({
     to,
     subject: `Video Interview Request from ${requesterName} 📹`,
-    react: VideoCallRequestEmail({ receiverName, requesterName, jobTitle, message, callsLink }),
-    html: '',
+    react: React.createElement(VideoCallRequestEmail, { receiverName, requesterName, jobTitle, message, callsLink }),
   })
 }
 
@@ -200,8 +211,7 @@ export async function sendVideoCallAcceptedEmail(
   return sendEmail({
     to,
     subject: `Video Interview Accepted! 🎉 - ${jobTitle}`,
-    react: VideoCallAcceptedEmail({ requesterName, receiverName, jobTitle, videoCallLink, scheduledTime }),
-    html: '',
+    react: React.createElement(VideoCallAcceptedEmail, { requesterName, receiverName, jobTitle, videoCallLink: videoCallLink, scheduledTime }),
   })
 }
 
@@ -213,13 +223,16 @@ export async function sendVideoCallRejectedEmail(
   requesterName: string,
   receiverName: string,
   jobTitle: string,
-  reason: string
+  reason: string,
+  request?: Request
 ) {
+  const { getAppUrl } = await import('@/lib/utils/url')
+  const appUrl = request ? getAppUrl(request) : (process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''))
+  
   return sendEmail({
     to,
     subject: `Video Interview Request Update - ${jobTitle}`,
-    react: VideoCallRejectedEmail({ requesterName, jobTitle, reason }),
-    html: '',
+    react: React.createElement(VideoCallRejectedEmail, { requesterName, jobTitle, reason, appUrl }),
   })
 }
 
@@ -241,8 +254,7 @@ export async function sendPaymentSuccessEmail(
   return sendEmail({
     to,
     subject: `Payment Confirmed for "${jobTitle}" 💰`,
-    react: PaymentSuccessEmail({ userName, jobTitle, amount, jobLink }),
-    html: '',
+    react: React.createElement(PaymentSuccessEmail, { userName, jobTitle, amount, jobLink }),
   })
 }
 
@@ -252,12 +264,15 @@ export async function sendPaymentSuccessEmail(
 export async function sendJobFilledEmail(
   to: string,
   applicantName: string,
-  jobTitle: string
+  jobTitle: string,
+  request?: Request
 ) {
+  const { getAppUrl } = await import('@/lib/utils/url')
+  const appUrl = request ? getAppUrl(request) : (process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''))
+  
   return sendEmail({
     to,
     subject: `Position Filled: ${jobTitle}`,
-    react: JobFilledEmail({ applicantName, jobTitle }),
-    html: '',
+    react: React.createElement(JobFilledEmail, { applicantName, jobTitle, appUrl }),
   })
 }

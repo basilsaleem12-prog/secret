@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, FileText, Copy, Download, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, FileText, Copy, Download, Check, AlertCircle, ArrowLeft, Lightbulb } from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
 
 export default function CoverLetterResultsPage() {
   const searchParams = useSearchParams();
@@ -16,11 +17,12 @@ export default function CoverLetterResultsPage() {
   const [coverLetter, setCoverLetter] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (jobId) {
-      fetchCoverLetter();
-    }
+    if (!jobId || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchCoverLetter();
   }, [jobId]);
 
   const fetchCoverLetter = async () => {
@@ -48,6 +50,14 @@ export default function CoverLetterResultsPage() {
     }
   };
 
+  const handleBack = () => {
+    if (jobId) {
+      router.push(`/jobs/${jobId}`);
+    } else {
+      router.back();
+    }
+  };
+
   const copyToClipboard = async () => {
     if (coverLetter?.coverLetter) {
       await navigator.clipboard.writeText(coverLetter.coverLetter);
@@ -61,7 +71,7 @@ export default function CoverLetterResultsPage() {
       const element = document.createElement('a');
       const file = new Blob([coverLetter.coverLetter], { type: 'text/plain' });
       element.href = URL.createObjectURL(file);
-      element.download = `cover-letter-${jobTitle}-${Date.now()}.txt`;
+      element.download = `cover-letter-${jobTitle || 'application'}-${Date.now()}.txt`;
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
@@ -70,10 +80,15 @@ export default function CoverLetterResultsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-[#1E3A8A] mb-4" />
-          <p className="text-lg">Generating your cover letter...</p>
+      <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: 'var(--accent)' }} />
+            <p className="text-lg font-medium" style={{ color: 'var(--foreground)' }}>
+              Generating your cover letter...
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -81,55 +96,105 @@ export default function CoverLetterResultsPage() {
 
   if (error || !coverLetter) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error || 'Failed to generate cover letter'}</p>
-          <Button onClick={() => router.back()} className="btn-gradient">
-            Go Back
-          </Button>
+      <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
+          <div className="max-w-md w-full text-center glass-card p-8">
+            <AlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: '#EF4444' }} />
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Error</h2>
+            <p className="mb-6" style={{ color: 'var(--foreground-muted)' }}>
+              {error || 'Failed to generate cover letter'}
+            </p>
+            <Button onClick={handleBack} className="btn-gradient">
+              Go Back
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+      <Navbar />
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4"
+            onClick={handleBack}
+            className="mb-6 hover:bg-transparent"
+            style={{ color: 'var(--foreground-muted)' }}
           >
-            ← Back
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Job
           </Button>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-full bg-purple-100">
-              <FileText className="w-8 h-8 text-purple-600" />
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+            <div 
+              className="p-4 rounded-full shrink-0"
+              style={{ 
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))',
+                color: 'white'
+              }}
+            >
+              <FileText className="w-8 h-8" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">AI-Generated Cover Letter</h1>
-              <Badge className="bg-linear-to-r from-purple-600 to-blue-600 text-white border-0 mt-2">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI-Powered
-              </Badge>
+            <div className="flex-1">
+              <h1 
+                className="text-3xl sm:text-4xl font-bold mb-3"
+                style={{ color: 'var(--foreground)' }}
+              >
+                AI-Generated Cover Letter
+              </h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge 
+                  className="border-0 text-white px-3 py-1"
+                  style={{ 
+                    background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))'
+                  }}
+                >
+                  <Sparkles className="w-3 h-3 mr-1.5" />
+                  AI-Powered
+                </Badge>
+              </div>
             </div>
           </div>
-          <p className="text-lg text-gray-600">
-            For: <span className="font-semibold text-purple-700">{jobTitle}</span>
-          </p>
+          
+          {jobTitle && (
+            <p className="text-lg mb-4" style={{ color: 'var(--foreground-muted)' }}>
+              For: <span className="font-semibold" style={{ color: 'var(--accent)' }}>{jobTitle}</span>
+            </p>
+          )}
 
           {/* Metadata */}
-          <div className="flex gap-4 mt-4">
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              📊 {coverLetter.wordCount} words
-            </Badge>
-            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-              ✨ {coverLetter.tone} tone
-            </Badge>
+          <div className="flex flex-wrap gap-3">
+            {coverLetter.wordCount && (
+              <Badge 
+                variant="outline" 
+                className="px-3 py-1"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'rgba(37, 99, 235, 0.1)',
+                  color: 'var(--accent)'
+                }}
+              >
+                📊 {coverLetter.wordCount} words
+              </Badge>
+            )}
+            {coverLetter.tone && (
+              <Badge 
+                variant="outline" 
+                className="px-3 py-1"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  color: '#A855F7'
+                }}
+              >
+                ✨ {coverLetter.tone} tone
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -137,13 +202,34 @@ export default function CoverLetterResultsPage() {
         <div className="space-y-6">
           {/* Key Points */}
           {coverLetter.keyPoints && coverLetter.keyPoints.length > 0 && (
-            <div className="glass-card p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">Key Highlights:</h3>
-              <ul className="space-y-1">
+            <div className="glass-card p-6">
+              <h3 
+                className="font-semibold text-lg mb-4 flex items-center gap-2"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(37, 99, 235, 0.1)',
+                    color: 'var(--accent)'
+                  }}
+                >
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                Key Highlights
+              </h3>
+              <ul className="space-y-2">
                 {coverLetter.keyPoints.map((point: string, idx: number) => (
-                  <li key={idx} className="text-sm text-blue-800 flex items-start gap-2">
-                    <span className="text-blue-600">✓</span>
-                    {point}
+                  <li 
+                    key={idx} 
+                    className="flex items-start gap-3"
+                    style={{ color: 'var(--foreground-muted)' }}
+                  >
+                    <Check 
+                      className="w-5 h-5 mt-0.5 shrink-0" 
+                      style={{ color: '#22C55E' }}
+                    />
+                    <span>{point}</span>
                   </li>
                 ))}
               </ul>
@@ -151,15 +237,21 @@ export default function CoverLetterResultsPage() {
           )}
 
           {/* Cover Letter Text */}
-          <div className="glass-card p-6">
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-800">
+          <div className="glass-card p-6 sm:p-8">
+            <div 
+              className="prose prose-sm max-w-none whitespace-pre-wrap leading-relaxed"
+              style={{ color: 'var(--foreground)' }}
+            >
               {coverLetter.coverLetter}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button onClick={copyToClipboard} className="flex-1 btn-gradient">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              onClick={copyToClipboard} 
+              className="flex-1 btn-gradient"
+            >
               {copied ? (
                 <>
                   <Check className="w-4 h-4 mr-2" />
@@ -172,24 +264,67 @@ export default function CoverLetterResultsPage() {
                 </>
               )}
             </Button>
-            <Button onClick={downloadAsText} variant="outline" className="flex-1">
+            <Button 
+              onClick={downloadAsText} 
+              variant="outline" 
+              className="flex-1"
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
+            >
               <Download className="w-4 h-4 mr-2" />
               Download as Text
             </Button>
           </div>
 
           {/* Tip */}
-          <div className="glass-card p-3 bg-yellow-50 border-yellow-200">
-            <p className="text-xs text-yellow-800">
-              <strong>💡 Tip:</strong> Personalize this cover letter before submitting. Add specific details about why you're interested in this company and role.
-            </p>
+          <div 
+            className="glass-card p-4"
+            style={{
+              background: 'rgba(251, 191, 36, 0.1)',
+              borderColor: '#F59E0B'
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <Lightbulb className="w-5 h-5 shrink-0" style={{ color: '#F59E0B' }} />
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--foreground-muted)' }}>
+                <strong style={{ color: 'var(--foreground)' }}>Tip:</strong> Personalize this cover letter before submitting. Add specific details about why you're interested in this company and role.
+              </p>
+            </div>
           </div>
 
-          {/* Action Button */}
-          <div className="flex justify-center">
-            <Button onClick={() => router.back()} className="btn-gradient" size="lg">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Button 
+              onClick={handleBack}
+              variant="outline" 
+              className="flex-1"
+              size="lg"
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
+            >
               Go Back
             </Button>
+            {jobId && (
+              <Button 
+                onClick={() => {
+                  router.push(`/jobs/${jobId}`);
+                  setTimeout(() => {
+                    const applySection = document.getElementById('apply-section');
+                    if (applySection) {
+                      applySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }, 100);
+                }}
+                className="flex-1 btn-gradient"
+                size="lg"
+              >
+                Apply with This Letter
+              </Button>
+            )}
           </div>
         </div>
       </div>

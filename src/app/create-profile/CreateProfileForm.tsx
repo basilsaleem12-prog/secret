@@ -10,6 +10,7 @@ import { SkillsInput } from './SkillsInput';
 import { InterestsInput } from './InterestsInput';
 import { RoleSelector } from './RoleSelector';
 import { AvatarUpload } from './AvatarUpload';
+import { useToast } from '@/components/ui/toast';
 
 interface CreateProfileFormProps {
   user: User;
@@ -17,6 +18,7 @@ interface CreateProfileFormProps {
 
 export function CreateProfileForm({ user }: CreateProfileFormProps) {
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +128,9 @@ export function CreateProfileForm({ user }: CreateProfileFormProps) {
         throw new Error(data.error || 'Failed to create profile');
       }
 
+      // Show success toast
+      toast.success(`Profile created successfully! ${data.emailSent ? 'Welcome email sent!' : ''}`);
+      
       // Success! Redirect to dashboard
       router.push('/dashboard');
       router.refresh();

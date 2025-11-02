@@ -136,7 +136,7 @@ export function JobsListClient({ jobs, currentUserId, userProfile }: JobsListCli
     // Filter by tags
     if (selectedTags.length > 0) {
       filtered = filtered.filter(job => 
-        selectedTags.some(tag => job.tags.includes(tag))
+        job.tags && Array.isArray(job.tags) && selectedTags.some(tag => job.tags.includes(tag))
       )
     }
 
@@ -146,7 +146,7 @@ export function JobsListClient({ jobs, currentUserId, userProfile }: JobsListCli
       filtered = filtered.filter(job => 
         job.title.toLowerCase().includes(query) ||
         job.description.toLowerCase().includes(query) ||
-        job.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        (job.tags && Array.isArray(job.tags) && job.tags.some(tag => tag.toLowerCase().includes(query))) ||
         job.createdBy.fullName?.toLowerCase().includes(query) ||
         job.location?.toLowerCase().includes(query) ||
         job.compensation?.toLowerCase().includes(query)

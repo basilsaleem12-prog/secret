@@ -211,22 +211,29 @@ export async function notifyMatchingUsersAboutNewJob(
 /**
  * Notify applicants when a job is marked as filled
  */
-export async function notifyJobFilled(jobId: string, jobTitle: string, excludeUserId?: string): Promise<void> {
+export async function notifyJobFilled(jobId: string, jobTitle: string, excludeUserId?: string, request?: Request): Promise<void> {
   try {
-    // Get all applicants who haven't been accepted
+    // Get all applicants who haven't been accepted with their email
     const applications = await prisma.application.findMany({
       where: {
         jobId,
         status: { not: 'ACCEPTED' },
         ...(excludeUserId ? { applicantId: { not: excludeUserId } } : {}),
       },
-      select: {
-        applicantId: true,
+      include: {
+        applicant: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
       },
     });
 
     if (applications.length === 0) return;
 
+    // Create notifications
     const notifications: CreateNotificationParams[] = applications.map(app => ({
       userId: app.applicantId,
       type: 'JOB_FILLED',
@@ -237,6 +244,19 @@ export async function notifyJobFilled(jobId: string, jobTitle: string, excludeUs
     }));
 
     await createNotifications(notifications);
+
+    // Send email notifications (non-blocking)
+    const { sendJobFilledEmail } = await import('@/lib/email/service');
+    for (const application of applications) {
+      if (application.applicant.email) {
+        sendJobFilledEmail(
+          application.applicant.email,
+          application.applicant.fullName || 'User',
+          jobTitle,
+          request
+        ).catch(err => console.error(`Failed to send job filled email to ${application.applicant.email}:`, err));
+      }
+    }
   } catch (error) {
     console.error('Error notifying about filled job:', error);
   }

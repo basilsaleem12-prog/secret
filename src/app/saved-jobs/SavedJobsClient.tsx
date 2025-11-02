@@ -63,7 +63,7 @@ export function SavedJobsClient({ bookmarks, currentUserId }: SavedJobsClientPro
     return (
       bookmark.job.title.toLowerCase().includes(query) ||
       bookmark.job.description.toLowerCase().includes(query) ||
-      bookmark.job.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+      (bookmark.job.tags && Array.isArray(bookmark.job.tags) && bookmark.job.tags.some((tag) => tag.toLowerCase().includes(query))) ||
       bookmark.job.createdBy.fullName?.toLowerCase().includes(query)
     )
   })

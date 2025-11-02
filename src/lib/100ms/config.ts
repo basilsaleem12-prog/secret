@@ -5,7 +5,9 @@ export const HMS_CONFIG = {
   appAccessKey: process.env.HMS_APP_ACCESS_KEY!,
   appSecret: process.env.HMS_APP_SECRET!,
   templateId: process.env.HMS_TEMPLATE_ID || 'default-template', // Video call template
+  managementToken: process.env.HMS_MANAGEMENT_TOKEN!, // For room code API calls
   region: 'in', // 'us', 'eu', 'in' based on your 100ms account region
+  subdomain: process.env.HMS_SUBDOMAIN || '', // For Prebuilt UI iframe
 } as const
 
 // Check for required environment variables

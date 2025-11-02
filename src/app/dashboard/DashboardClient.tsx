@@ -87,12 +87,12 @@ export function DashboardClient({ profile, serverActiveRole }: DashboardClientPr
 
   if (isLoading || loadingAnalytics) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="glass-card p-8 h-32"></div>
+      <div className="space-y-8 animate-pulse" suppressHydrationWarning>
+        <div className="glass-card p-8 h-32" suppressHydrationWarning></div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-card p-6 h-24"></div>
-          <div className="glass-card p-6 h-24"></div>
-          <div className="glass-card p-6 h-24"></div>
+          <div className="glass-card p-6 h-24" suppressHydrationWarning></div>
+          <div className="glass-card p-6 h-24" suppressHydrationWarning></div>
+          <div className="glass-card p-6 h-24" suppressHydrationWarning></div>
         </div>
       </div>
     )

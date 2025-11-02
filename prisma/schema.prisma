@@ -177,6 +177,7 @@ model CallRequest {
   // 100ms Room details
   roomId        String? // 100ms room ID
   roomName      String? // 100ms room name
+  roomCode      String? // 100ms room code for Prebuilt UI (iframe access)
   
   // Messages
   message       String? // Message from requester

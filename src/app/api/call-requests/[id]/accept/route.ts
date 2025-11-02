@@ -84,23 +84,30 @@ export async function POST(
       )
     }
 
-    // Check if 100ms is properly configured
+    // Check if 100ms is properly configured - REQUIRED
     const hmsAccessKey = process.env.HMS_APP_ACCESS_KEY
     const hmsSecret = process.env.HMS_APP_SECRET
+    const hmsManagementToken = process.env.HMS_MANAGEMENT_TOKEN
     
     if (!hmsAccessKey || !hmsSecret) {
       return NextResponse.json(
         { 
-          error: '100ms video calling is not configured on this server. Please ask the administrator to set up the HMS_APP_ACCESS_KEY and HMS_APP_SECRET environment variables. See 100MS_SETUP_GUIDE.md for instructions.',
+          error: '100ms video calling is not configured on this server. Please ask the administrator to set up the HMS_APP_ACCESS_KEY and HMS_APP_SECRET environment variables. See 100MS_IMPLEMENTATION_GUIDE.md for instructions.',
           code: 'HMS_NOT_CONFIGURED'
         },
         { status: 503 }
       )
     }
 
-    // Create 100ms room
+    if (!hmsManagementToken) {
+      console.warn('⚠️  HMS_MANAGEMENT_TOKEN not configured. Room codes (Prebuilt UI) will not be available.')
+      console.warn('⚠️  Set HMS_MANAGEMENT_TOKEN to enable iframe-based video calls.')
+    }
+
+    // Create 100ms room - NO MOCK ROOMS, throws error if fails
     let roomId: string
     let roomName: string
+    let roomCode: string | undefined
     
     try {
       const roomResult = await createHMSRoom(
@@ -110,14 +117,46 @@ export async function POST(
       )
       roomId = roomResult.roomId
       roomName = roomResult.roomName
+      roomCode = roomResult.roomCode
       
-      console.log('✅ Room created successfully:', { roomId, roomName })
+      console.log('✅ Room created successfully:', { roomId, roomName, roomCode })
+      
+      // Warn if room code is missing
+      if (!roomCode) {
+        console.warn('⚠️  Room created but no room code. Set HMS_MANAGEMENT_TOKEN to enable Prebuilt UI.')
+      }
     } catch (error) {
       console.error('❌ Failed to create 100ms room:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      // Provide helpful error messages
+      if (errorMessage.includes('credentials not configured')) {
+        return NextResponse.json(
+          { 
+            error: '100ms credentials are not configured. Please set HMS_APP_ACCESS_KEY and HMS_APP_SECRET environment variables.',
+            code: 'HMS_NOT_CONFIGURED',
+            details: errorMessage
+          },
+          { status: 503 }
+        )
+      }
+      
+      if (errorMessage.includes('template')) {
+        return NextResponse.json(
+          { 
+            error: '100ms template configuration error. Please check HMS_TEMPLATE_ID and ensure the template exists in your 100ms dashboard.',
+            code: 'HMS_TEMPLATE_ERROR',
+            details: errorMessage
+          },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
         { 
           error: 'Failed to create video call room. Please check 100ms configuration and try again.',
-          details: error instanceof Error ? error.message : 'Unknown error'
+          code: 'ROOM_CREATION_FAILED',
+          details: errorMessage
         },
         { status: 500 }
       )
@@ -131,6 +170,7 @@ export async function POST(
         acceptedAt: new Date(),
         roomId,
         roomName,
+        roomCode, // Store room code for Prebuilt UI
         scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
       },
       include: {
@@ -199,6 +239,7 @@ export async function POST(
       message: 'Call request accepted successfully',
       roomId,
       roomName,
+      roomCode, // Return room code for frontend
       videoCallLink
     })
 

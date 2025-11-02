@@ -1,9 +1,16 @@
 import { HMS_CONFIG, HMS_ROLES, generateRoomName, generateRoomId } from './config'
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
+
+// Dynamic import for 100ms SDK to avoid build issues
+async function getSDK() {
+  const { SDK } = await import('@100mslive/server-sdk')
+  return SDK
+}
 
 export interface CreateRoomResult {
   roomId: string
   roomName: string
+  roomCode?: string // Room code for Prebuilt UI
 }
 
 export interface GenerateTokenParams {
@@ -23,58 +30,192 @@ export async function createHMSRoom(
 ): Promise<CreateRoomResult> {
   const roomName = generateRoomName(jobId, requesterId)
 
-  // Check if 100ms credentials are configured
+  // Check if 100ms credentials are configured - REQUIRED, no mock rooms
   if (!HMS_CONFIG.appAccessKey || !HMS_CONFIG.appSecret) {
-    console.warn('⚠️  100ms credentials not configured, using mock room')
-    const mockRoomId = generateRoomId()
-    return {
-      roomId: mockRoomId,
-      roomName,
-    }
+    const errorMsg = '100ms credentials not configured. Please set HMS_APP_ACCESS_KEY and HMS_APP_SECRET environment variables.'
+    console.error('❌', errorMsg)
+    throw new Error(errorMsg)
   }
 
   try {
-    // Create Management Token for API calls
-    const managementToken = Buffer.from(
-      `${HMS_CONFIG.appAccessKey}:${HMS_CONFIG.appSecret}`
-    ).toString('base64')
-
-    // Call 100ms API to create a room
-    const response = await fetch('https://api.100ms.live/v2/rooms', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${managementToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: roomName,
-        template_id: HMS_CONFIG.templateId,
-        region: HMS_CONFIG.region,
-      }),
+    // Initialize 100ms SDK - handles authentication automatically
+    const SDK = await getSDK()
+    const sdk = new SDK(HMS_CONFIG.appAccessKey, HMS_CONFIG.appSecret)
+    
+    // Create room using SDK (as per 100ms guide)
+    const room = await sdk.rooms.create({
+      name: roomName,
+      description: `Video call room for job interview`,
+      template_id: HMS_CONFIG.templateId,
     })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-      console.error('❌ Failed to create 100ms room:', errorData)
-      throw new Error(`100ms API error: ${errorData.message || response.statusText}`)
+    
+    console.log('✅ Successfully created 100ms room:', room)
+    
+    const roomId = room.id
+    const roomNameResult = room.name || roomName
+  
+    // Generate room code for Prebuilt UI - REQUIRED
+    let roomCode: string | undefined
+    try {
+      roomCode = await create100msRoomCode(roomId)
+      if (roomCode) {
+        console.log('✅ Successfully created room code:', roomCode)
+      } else {
+        console.warn('⚠️  Room code creation returned undefined. Room created but code not available.')
+      }
+    } catch (codeError) {
+      console.error('❌ Failed to create room code:', codeError)
+      // Room was created but code failed - we can still use token-based approach
+      console.warn('⚠️  Room created but room code failed. Token-based approach will be used as fallback.')
     }
-
-    const data = await response.json()
-    console.log('✅ Successfully created 100ms room:', data)
+    
+    if (!roomCode) {
+      console.warn('⚠️  No room code available. Users will need to use token-based authentication.')
+    }
     
     return {
-      roomId: data.id,
-      roomName: data.name,
+      roomId,
+      roomName: roomNameResult,
+      roomCode,
     }
   } catch (error) {
     console.error('❌ Error creating 100ms room:', error)
-    // Fallback to mock room if API call fails
-    const mockRoomId = generateRoomId()
-    console.warn('⚠️  Using mock room as fallback')
-    return {
-      roomId: mockRoomId,
-      roomName,
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Provide helpful error messages
+    if (errorMessage.includes('Token') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
+      throw new Error('100ms authentication failed. Please check HMS_APP_ACCESS_KEY and HMS_APP_SECRET. Make sure they are correct and your 100ms account is active.')
     }
+    
+    if (errorMessage.includes('template')) {
+      throw new Error(`100ms template error: ${errorMessage}. Please check HMS_TEMPLATE_ID and ensure the template exists in your 100ms dashboard.`)
+    }
+    
+    throw new Error(`Failed to create 100ms room: ${errorMessage}`)
+  }
+}
+
+/**
+ * Verify if a room exists in 100ms
+ * @param {string} roomId - The room ID to verify
+ * @returns {Promise<boolean>} True if room exists
+ */
+async function verifyRoomExists(roomId: string): Promise<boolean> {
+  if (!HMS_CONFIG.managementToken) {
+    return false
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.100ms.live/v2/rooms/${roomId}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${HMS_CONFIG.managementToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Create a room code for Prebuilt UI
+ * Room codes allow users to join via iframe without tokens
+ * @param {string} roomId - The room ID from createHMSRoom
+ * @returns {Promise<string|undefined>} Room code (guest code)
+ */
+export async function create100msRoomCode(roomId: string): Promise<string | undefined> {
+  // Check if management token is configured
+  if (!HMS_CONFIG.managementToken) {
+    console.warn('⚠️  HMS_MANAGEMENT_TOKEN not configured, cannot create room code')
+    console.warn('⚠️  Set HMS_MANAGEMENT_TOKEN environment variable to enable Prebuilt UI (iframe) video calls')
+    return undefined
+  }
+
+  try {
+    // First verify the room exists
+    const roomExists = await verifyRoomExists(roomId)
+    if (!roomExists) {
+      console.error('❌ Room does not exist in 100ms:', roomId)
+      throw new Error(`Room not found: The room ID "${roomId}" does not exist in your 100ms account. Please verify the room ID or create a new room.`)
+    }
+
+    console.log('✅ Room verified to exist, creating room code...')
+    console.log('📞 Calling 100ms API to create room code:', {
+      url: `https://api.100ms.live/v2/room-codes/room/${roomId}`,
+      roomId,
+      hasManagementToken: !!HMS_CONFIG.managementToken
+    })
+
+    const response = await fetch(
+      `https://api.100ms.live/v2/room-codes/room/${roomId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${HMS_CONFIG.managementToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'guest',
+          enabled: true,
+        }),
+      }
+    )
+
+    console.log('📥 Response status:', response.status, response.statusText)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { message: errorText || 'Unknown error' }
+      }
+      console.error('❌ Failed to create room code:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      })
+      throw new Error(`Room code creation failed: ${errorData.message || errorData.error || response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('📋 Room code API response:', data)
+
+    // Extract guest code from response
+    let guestCode: string | undefined
+    
+    if (data && Array.isArray(data.data)) {
+      // Response format: { data: [{ role: 'guest', code: '...' }] }
+      const guestCodeObj = data.data.find((c: any) => c.role === 'guest')
+      guestCode = guestCodeObj?.code
+    } else if (data?.data && typeof data.data === 'object') {
+      // Response format: { data: { code: '...' } }
+      guestCode = data.data.code
+    } else if (data?.code) {
+      // Direct code in response
+      guestCode = data.code
+    }
+
+    if (!guestCode) {
+      console.error('❌ No guest code found in response:', data)
+      throw new Error('Room code API returned no guest code')
+    }
+
+    console.log('✅ Extracted room code:', guestCode)
+    return guestCode
+  } catch (err) {
+    console.error('❌ Error creating room code:', err)
+    if (err instanceof Error) {
+      throw err
+    }
+    throw new Error('Unknown error creating room code')
   }
 }
 

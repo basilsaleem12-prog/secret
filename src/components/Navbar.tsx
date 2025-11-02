@@ -118,9 +118,9 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 glass-card shadow-md" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 justify-between items-center">
+    <nav className="sticky top-0 z-50 glass-card shadow-md" style={{ borderBottom: '1px solid var(--border)' }} suppressHydrationWarning>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" suppressHydrationWarning>
+        <div className="flex h-16 justify-between items-center" suppressHydrationWarning>
           {/* Logo */}
           <div className="flex items-center gap-8">
             <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 group">

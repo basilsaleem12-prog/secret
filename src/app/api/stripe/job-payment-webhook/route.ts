@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe/config'
 import { prisma } from '@/lib/prisma'
+import { sendPaymentSuccessEmail } from '@/lib/email/service'
 import Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
@@ -52,6 +53,28 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Get job and user details for email
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          }
+        }
+      })
+
+      if (!job) {
+        console.error(`Job ${jobId} not found`)
+        return NextResponse.json(
+          { error: 'Job not found' },
+          { status: 404 }
+        )
+      }
+
       // Update job with payment information
       await prisma.job.update({
         where: { id: jobId },
@@ -72,6 +95,18 @@ export async function POST(request: NextRequest) {
           content: `Payment of $${paymentAmount} received for your job posting!`,
         },
       })
+
+      // Send payment success email (non-blocking)
+      if (job.createdBy.email) {
+        sendPaymentSuccessEmail(
+          job.createdBy.email,
+          job.createdBy.fullName || 'User',
+          job.title,
+          parseFloat(paymentAmount),
+          jobId,
+          request
+        ).catch(err => console.error('Failed to send payment success email:', err))
+      }
 
       console.log(`Job ${jobId} marked as paid with amount $${paymentAmount}`)
     }

@@ -122,8 +122,9 @@ const emailStyles = {
 }
 
 // Welcome Email Component
-export function WelcomeEmail({ userName }: WelcomeEmailProps) {
-  const profileLink = `${EMAIL_CONFIG.appUrl}/profile`
+export function WelcomeEmail({ userName, appUrl }: WelcomeEmailProps & { appUrl?: string }) {
+  const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '')
+  const profileLink = `${baseUrl}/profile`
   
   return (
     <div style={emailStyles.body}>
@@ -209,7 +210,9 @@ export function JobApprovedEmail({ userName, jobTitle, jobLink }: JobApprovedEma
 }
 
 // Job Rejected Email Component
-export function JobRejectedEmail({ userName, jobTitle, rejectionReason }: JobRejectedEmailProps) {
+export function JobRejectedEmail({ userName, jobTitle, rejectionReason, appUrl }: JobRejectedEmailProps & { appUrl?: string }) {
+  const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '')
+  
   return (
     <div style={emailStyles.body}>
       <div style={emailStyles.container}>
@@ -243,7 +246,7 @@ export function JobRejectedEmail({ userName, jobTitle, rejectionReason }: JobRej
           </ul>
           
           <div style={{ textAlign: 'center' }}>
-            <a href={`${EMAIL_CONFIG.appUrl}/my-jobs`} style={emailStyles.button}>View My Jobs</a>
+            <a href={`${baseUrl}/my-jobs`} style={emailStyles.button}>View My Jobs</a>
           </div>
           
           <p>If you have any questions about this decision, please contact our support team.</p>
@@ -549,8 +552,11 @@ export function VideoCallAcceptedEmail({
 export function VideoCallRejectedEmail({ 
   requesterName, 
   jobTitle, 
-  reason 
-}: VideoCallRejectedEmailProps) {
+  reason,
+  appUrl
+}: VideoCallRejectedEmailProps & { appUrl?: string }) {
+  const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '')
+  
   return (
     <div style={emailStyles.body}>
       <div style={emailStyles.container}>
@@ -577,7 +583,7 @@ export function VideoCallRejectedEmail({
           </ul>
           
           <div style={{ textAlign: 'center' }}>
-            <a href={`${EMAIL_CONFIG.appUrl}/my-applications`} style={emailStyles.button}>View My Applications</a>
+            <a href={`${baseUrl}/my-applications`} style={emailStyles.button}>View My Applications</a>
           </div>
           
           <p>Keep applying and showcasing your talents!</p>
@@ -642,8 +648,11 @@ export function PaymentSuccessEmail({
 // Job Filled Email Component
 export function JobFilledEmail({ 
   applicantName, 
-  jobTitle 
-}: JobFilledEmailProps) {
+  jobTitle,
+  appUrl
+}: JobFilledEmailProps & { appUrl?: string }) {
+  const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '')
+  
   return (
     <div style={emailStyles.body}>
       <div style={emailStyles.container}>
@@ -670,7 +679,7 @@ export function JobFilledEmail({
           </ul>
           
           <div style={{ textAlign: 'center' }}>
-            <a href={`${EMAIL_CONFIG.appUrl}/jobs`} style={emailStyles.button}>Browse More Jobs</a>
+            <a href={`${baseUrl}/jobs`} style={emailStyles.button}>Browse More Jobs</a>
           </div>
           
           <p>Your next opportunity is waiting!</p>

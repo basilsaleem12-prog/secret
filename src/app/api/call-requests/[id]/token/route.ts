@@ -89,6 +89,24 @@ export async function GET(
       )
     }
 
+    // If room code exists, prefer Prebuilt UI (iframe) approach
+    if (callRequest.roomCode) {
+      return NextResponse.json({
+        roomCode: callRequest.roomCode, // Return room code for Prebuilt UI
+        roomId: callRequest.roomId,
+        roomName: callRequest.roomName,
+        role: isReceiver ? 'host' : 'guest',
+        callRequest: {
+          id: callRequest.id,
+          status: callRequest.status,
+          scheduledTime: callRequest.scheduledTime,
+          job: callRequest.job,
+          requester: callRequest.requester,
+          receiver: callRequest.receiver
+        }
+      })
+    }
+
     // Check if 100ms is properly configured
     const hmsAccessKey = process.env.HMS_APP_ACCESS_KEY
     const hmsSecret = process.env.HMS_APP_SECRET
@@ -103,10 +121,16 @@ export async function GET(
       )
     }
 
-    // Check if this is a mock room (development mode)
-    if (callRequest.roomId.includes('mock') || callRequest.roomId.length === 36) {
-      // UUID format suggests it might be a mock room
-      console.warn('⚠️  Attempting to join with potentially mock room ID:', callRequest.roomId)
+    // Validate room ID is a real 100ms room (not a UUID from mock)
+    // Real 100ms room IDs are typically longer alphanumeric strings, not just UUIDs
+    if (!callRequest.roomId || callRequest.roomId.length < 10) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid room ID. Please ensure the video call was properly created.',
+          code: 'INVALID_ROOM_ID'
+        },
+        { status: 400 }
+      )
     }
 
     // Generate token based on user role

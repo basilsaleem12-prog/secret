@@ -33,7 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('📧 Sending test email to:', recipientEmail)
     
     const { data, error } = await resend.emails.send({
-      from: EMAIL_CONFIG.from,
+      from: 'onboarding@zalnex.me',
       to: recipientEmail,
       subject: '🧪 Test Email from CampusConnect',
       html: `
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               
               <h3>📊 Test Details:</h3>
               <div class="code">
-                <p><strong>From:</strong> ${EMAIL_CONFIG.from}</p>
+                <p><strong>From:</strong> onboarding@zalnex.me</p>
                 <p><strong>To:</strong> ${recipientEmail}</p>
                 <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
                 <p><strong>Service:</strong> Resend</p>
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Test 2: Test welcome email template
     console.log('📧 Testing welcome email template...')
-    const welcomeResult = await sendWelcomeEmail(recipientEmail, 'Test User')
+    const welcomeResult = await sendWelcomeEmail(recipientEmail, 'Test User', request)
 
     return NextResponse.json({
       success: true,
@@ -123,8 +123,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
       },
       config: {
-        from: EMAIL_CONFIG.from,
-        appUrl: EMAIL_CONFIG.appUrl,
+        from: 'onboarding@zalnex.me',
         emailsEnabled: isEmailEnabled()
       },
       nextSteps: [
@@ -173,7 +172,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const userName = name || 'Test User'
 
     // Send welcome email
-    const result = await sendWelcomeEmail(to, userName)
+    const result = await sendWelcomeEmail(to, userName, request)
 
     if (!result.success) {
       return NextResponse.json({

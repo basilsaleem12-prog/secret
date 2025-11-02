@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Check, CheckCheck, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -26,7 +26,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications
-  const fetchNotifications = async (): Promise<void> => {
+  const fetchNotifications = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await fetch('/api/notifications');
@@ -40,7 +40,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Mark notification as read
   const markAsRead = async (notificationId: string): Promise<void> => {
@@ -96,7 +96,12 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     }
     
     if (notification.link) {
-      window.location.href = notification.link;
+      // Open video call links in a new tab, others in same tab
+      if (notification.link.startsWith('/video-call/')) {
+        window.open(notification.link, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = notification.link;
+      }
     }
     
     setIsOpen(false);
@@ -124,7 +129,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     if (isOpen) {
       fetchNotifications();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchNotifications]);
 
   // Poll for new notifications every 30 seconds
   useEffect(() => {
@@ -138,7 +143,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   const getNotificationIcon = (type: string): string => {
     const icons: Record<string, string> = {

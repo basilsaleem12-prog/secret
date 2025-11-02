@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { Upload, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 
 interface AvatarUploadProps {
   currentUrl: string;
@@ -10,6 +11,7 @@ interface AvatarUploadProps {
 }
 
 export function AvatarUpload({ currentUrl, onUpload }: AvatarUploadProps) {
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(currentUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,9 +58,10 @@ export function AvatarUpload({ currentUrl, onUpload }: AvatarUploadProps) {
       }
 
       onUpload(data.url);
+      toast.success('Profile picture uploaded successfully!');
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload image. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image. Please try again.');
       setPreviewUrl(currentUrl);
     } finally {
       setUploading(false);

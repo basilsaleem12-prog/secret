@@ -112,18 +112,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email (non-blocking)
+    let emailSent = false
     const userEmail = email || user.email
     if (userEmail) {
-      sendWelcomeEmail(userEmail, fullName.trim()).catch(err => 
-        console.error('Failed to send welcome email:', err)
-      )
+      sendWelcomeEmail(userEmail, fullName.trim(), request)
+        .then(result => {
+          if (result.success) {
+            console.log(`✅ Welcome email sent to ${userEmail}`)
+          } else {
+            console.error(`❌ Failed to send welcome email: ${result.error}`)
+          }
+        })
+        .catch(err => {
+          console.error('Failed to send welcome email:', err)
+        })
+      emailSent = true
     }
 
     return NextResponse.json(
       { 
         success: true, 
         profile,
-        message: 'Profile created successfully!' 
+        message: 'Profile created successfully!',
+        emailSent: emailSent && userEmail ? true : false
       },
       { status: 201 }
     );

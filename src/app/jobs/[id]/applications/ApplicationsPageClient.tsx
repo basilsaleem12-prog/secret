@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import MatchScoreBadge from '@/components/MatchScoreBadge'
 import CalculateMatchButton from '@/components/CalculateMatchButton'
+import { useToast } from '@/components/ui/toast'
 import {
   ArrowLeft,
   Users,
@@ -84,6 +85,7 @@ export function ApplicationsPageClient({
   initialCounts,
 }: ApplicationsPageClientProps) {
   const router = useRouter()
+  const toast = useToast()
   const [applications, setApplications] = useState(initialApplications)
   const [counts, setCounts] = useState(initialCounts)
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
@@ -128,8 +130,17 @@ export function ApplicationsPageClient({
 
       // Refresh the page to get updated data
       router.refresh()
+      
+      // Show toast notification
+      const statusLabels: Record<string, string> = {
+        SHORTLISTED: 'Shortlisted',
+        ACCEPTED: 'Accepted',
+        REJECTED: 'Rejected',
+        PENDING: 'Moved to Pending'
+      }
+      toast.success(`${statusLabels[newStatus]}! Email notification sent to applicant.`)
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update application status')
+      toast.error(error instanceof Error ? error.message : 'Failed to update application status')
     } finally {
       setUpdatingStatus(null)
     }

@@ -41,12 +41,15 @@ interface VideoCallsClientProps {
   currentUserId: string
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  ACCEPTED: 'bg-green-100 text-green-800 border-green-300',
-  REJECTED: 'bg-red-100 text-red-800 border-red-300',
-  COMPLETED: 'bg-gray-100 text-gray-800 border-gray-300',
-  CANCELLED: 'bg-gray-100 text-gray-800 border-gray-300',
+const getStatusBadgeStyle = (status: string) => {
+  const styles: Record<string, { bg: string; text: string; border: string }> = {
+    PENDING: { bg: 'rgba(251, 191, 36, 0.2)', text: '#F59E0B', border: '#F59E0B' },
+    ACCEPTED: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22C55E', border: '#22C55E' },
+    REJECTED: { bg: 'rgba(239, 68, 68, 0.2)', text: '#EF4444', border: '#EF4444' },
+    COMPLETED: { bg: 'rgba(107, 114, 128, 0.2)', text: '#6B7280', border: '#6B7280' },
+    CANCELLED: { bg: 'rgba(107, 114, 128, 0.2)', text: '#6B7280', border: '#6B7280' },
+  }
+  return styles[status] || styles.PENDING
 }
 
 export function VideoCallsClient({
@@ -76,10 +79,10 @@ export function VideoCallsClient({
         throw new Error(data.error || 'Failed to accept request')
       }
 
-      router.refresh()
+      // Reload the page to show updated video call status
+      window.location.reload()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to accept request')
-    } finally {
       setActionLoading(null)
       setScheduledTime('')
     }
@@ -141,20 +144,38 @@ export function VideoCallsClient({
             </div>
           </div>
 
-          <Badge className={STATUS_COLORS[request.status]}>
+          <Badge 
+            style={{
+              background: getStatusBadgeStyle(request.status).bg,
+              color: getStatusBadgeStyle(request.status).text,
+              borderColor: getStatusBadgeStyle(request.status).border,
+            }}
+          >
             {request.status}
           </Badge>
         </div>
 
         {/* Job Info */}
-        <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <Briefcase className="w-4 h-4 text-blue-600" />
-          <span className="font-medium text-blue-900">{request.job.title}</span>
+        <div 
+          className="flex items-center gap-2 mb-4 p-3 rounded-lg border"
+          style={{
+            background: 'rgba(37, 99, 235, 0.1)',
+            borderColor: 'var(--border)',
+          }}
+        >
+          <Briefcase className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+          <span className="font-medium" style={{ color: 'var(--foreground)' }}>{request.job.title}</span>
         </div>
 
         {/* Message */}
         {request.message && (
-          <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <div 
+            className="mb-4 p-3 rounded-lg border"
+            style={{
+              background: 'rgba(0, 0, 0, 0.05)',
+              borderColor: 'var(--border)',
+            }}
+          >
             <div className="flex items-start gap-2">
               <MessageSquare className="w-4 h-4 mt-1" style={{ color: 'var(--foreground-muted)' }} />
               <p className="text-sm" style={{ color: 'var(--foreground)' }}>
@@ -174,8 +195,8 @@ export function VideoCallsClient({
           )}
           {request.scheduledTime && (
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-green-600" />
-              <span className="text-green-600 font-medium">
+              <Clock className="w-4 h-4" style={{ color: '#22C55E' }} />
+              <span className="font-medium" style={{ color: '#22C55E' }}>
                 Scheduled: {new Date(request.scheduledTime).toLocaleString()}
               </span>
             </div>
@@ -198,6 +219,11 @@ export function VideoCallsClient({
                 min={new Date().toISOString().slice(0, 16)}
                 className="glass-input"
                 placeholder="Set scheduled time (optional)"
+                style={{
+                  background: 'var(--background)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)',
+                }}
               />
               <Button
                 onClick={() => handleAccept(request.id)}
@@ -226,6 +252,11 @@ export function VideoCallsClient({
                   onChange={(e) => setRejectReason(e.target.value)}
                   className="glass-input w-full min-h-[80px]"
                   placeholder="Optional: Reason for declining (will be sent to applicant)"
+                  style={{
+                    background: 'var(--background)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                  }}
                 />
                 <div className="flex gap-2">
                   <Button
@@ -270,21 +301,36 @@ export function VideoCallsClient({
         {canJoin && (
           <div className="space-y-3">
             {/* Video Call Link Display */}
-            <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
-              <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
+            <div 
+              className="p-4 rounded-lg border-2"
+              style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#22C55E',
+              }}
+            >
+              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#22C55E' }}>
                 <Video className="w-4 h-4" />
                 Video Call Ready
               </h4>
-              <p className="text-xs text-green-700 mb-3">
+              <p className="text-xs mb-3" style={{ color: 'var(--foreground-muted)' }}>
                 Share this link or click the button below to join:
               </p>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={`${window.location.origin}/video-call/${request.id}`}
+                  value={(() => {
+                    if (typeof window === 'undefined') return `/video-call/${request.id}`
+                    return `${window.location.origin}/video-call/${request.id}`
+                  })()}
                   readOnly
-                  className="flex-1 px-3 py-2 text-sm bg-white border border-green-300 rounded font-mono"
+                  className="flex-1 px-3 py-2 text-sm rounded font-mono"
                   onClick={(e) => e.currentTarget.select()}
+                  suppressHydrationWarning
+                  style={{
+                    background: 'var(--background)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                  }}
                 />
                 <Button
                   onClick={() => {
@@ -301,7 +347,10 @@ export function VideoCallsClient({
             </div>
             
             <Button
-              onClick={() => router.push(`/video-call/${request.id}`)}
+              onClick={() => {
+                const url = `/video-call/${request.id}`
+                window.open(url, '_blank', 'noopener,noreferrer')
+              }}
               className="w-full btn-gradient"
             >
               <Video className="w-4 h-4 mr-2" />
@@ -311,7 +360,14 @@ export function VideoCallsClient({
         )}
 
         {request.status === 'REJECTED' && request.rejectReason && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+          <div 
+            className="p-3 rounded-lg border text-sm"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: '#EF4444',
+              color: '#EF4444',
+            }}
+          >
             <strong>Decline reason:</strong> {request.rejectReason}
           </div>
         )}
@@ -335,11 +391,27 @@ export function VideoCallsClient({
 
       {/* Tabs */}
       <Tabs defaultValue="received" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="received">
+        <TabsList 
+          className="grid w-full grid-cols-2"
+          style={{
+            background: 'var(--card)',
+            borderColor: 'var(--border)',
+          }}
+        >
+          <TabsTrigger 
+            value="received"
+            style={{
+              color: 'var(--foreground)',
+            }}
+          >
             Received ({receivedRequests.length})
           </TabsTrigger>
-          <TabsTrigger value="sent">
+          <TabsTrigger 
+            value="sent"
+            style={{
+              color: 'var(--foreground)',
+            }}
+          >
             Sent ({sentRequests.length})
           </TabsTrigger>
         </TabsList>

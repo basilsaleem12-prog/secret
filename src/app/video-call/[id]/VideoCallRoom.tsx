@@ -132,10 +132,15 @@ export function VideoCallRoom({
     // Cleanup on unmount
     return () => {
       if (isConnected) {
-        hmsActions.leave()
+        try {
+          hmsActions.leave()
+        } catch (err) {
+          console.error('Error leaving room on cleanup:', err)
+        }
       }
     }
-  }, [token, hmsActions, userName, isConnected])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, userName, isConnected])
 
   const toggleAudio = async () => {
     await hmsActions.setLocalAudioEnabled(!isLocalAudioEnabled)

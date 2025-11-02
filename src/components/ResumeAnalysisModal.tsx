@@ -59,14 +59,34 @@ export default function ResumeAnalysisModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 glass-card p-6 border-b flex items-start justify-between bg-linear-to-r from-purple-50 to-blue-50" style={{ borderColor: 'var(--border)' }}>
+        <div 
+          className="sticky top-0 glass-card p-6 border-b flex items-start justify-between z-10"
+          style={{ 
+            borderColor: 'var(--border)',
+            background: 'var(--card)'
+          }}
+        >
           <div className="flex-1">
-            <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
-              <Sparkles className="w-6 h-6" style={{ color: '#1E3A8A' }} />
+            <h2 
+              className="text-2xl font-bold flex items-center gap-2" 
+              style={{ color: 'var(--foreground)' }}
+            >
+              <div 
+                className="p-2 rounded-full shrink-0"
+                style={{ 
+                  background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))',
+                  color: 'white'
+                }}
+              >
+                <Sparkles className="w-5 h-5" />
+              </div>
               AI Resume Analysis
             </h2>
             {fileName && (
-              <p className="text-sm mt-1 flex items-center gap-2" style={{ color: 'var(--foreground-muted)' }}>
+              <p 
+                className="text-sm mt-2 flex items-center gap-2" 
+                style={{ color: 'var(--foreground-muted)' }}
+              >
                 <FileText className="w-4 h-4" />
                 {fileName}
                 {analysis.wordCount && ` • ${analysis.wordCount} words`}
@@ -76,7 +96,16 @@ export default function ResumeAnalysisModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2 rounded-full transition-colors"
+            style={{
+              color: 'var(--foreground-muted)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.setProperty('background-color', 'var(--border-light)', 'important');
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.setProperty('background-color', 'transparent', 'important');
+            }}
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -159,14 +188,28 @@ export default function ResumeAnalysisModal({
           <div className="grid md:grid-cols-2 gap-4">
             {/* Strengths */}
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-green-700">
-                <CheckCircle2 className="w-5 h-5" />
+              <h3 
+                className="font-semibold text-lg mb-4 flex items-center gap-2"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    color: '#22C55E'
+                  }}
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
                 Strengths
               </h3>
               <ul className="space-y-3">
                 {analysis.strengths.map((strength: string, index: number) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-600 mt-1.5 shrink-0" />
+                  <li key={index} className="flex items-start gap-3 text-sm">
+                    <CheckCircle2 
+                      className="w-5 h-5 mt-0.5 shrink-0" 
+                      style={{ color: '#22C55E' }}
+                    />
                     <span style={{ color: 'var(--foreground-muted)' }}>{strength}</span>
                   </li>
                 ))}
@@ -175,14 +218,28 @@ export default function ResumeAnalysisModal({
 
             {/* Improvements */}
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-orange-700">
-                <AlertCircle className="w-5 h-5" />
+              <h3 
+                className="font-semibold text-lg mb-4 flex items-center gap-2"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(249, 115, 22, 0.1)',
+                    color: '#F97316'
+                  }}
+                >
+                  <AlertCircle className="w-5 h-5" />
+                </div>
                 Areas to Improve
               </h3>
               <ul className="space-y-3">
                 {analysis.improvements.map((improvement: string, index: number) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <div className="w-1.5 h-1.5 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                  <li key={index} className="flex items-start gap-3 text-sm">
+                    <div 
+                      className="w-2 h-2 rounded-full mt-2 shrink-0"
+                      style={{ background: '#F97316' }}
+                    />
                     <span style={{ color: 'var(--foreground-muted)' }}>{improvement}</span>
                   </li>
                 ))}
@@ -193,13 +250,33 @@ export default function ResumeAnalysisModal({
           {/* Suggested Job Titles */}
           {analysis.suggestedJobTitles.length > 0 && (
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-lg mb-3 flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
-                <TrendingUp className="w-5 h-5" style={{ color: '#1E3A8A' }} />
+              <h3 
+                className="font-semibold text-lg mb-3 flex items-center gap-2" 
+                style={{ color: 'var(--foreground)' }}
+              >
+                <div 
+                  className="p-2 rounded-full shrink-0"
+                  style={{ 
+                    background: 'rgba(37, 99, 235, 0.1)',
+                    color: 'var(--accent)'
+                  }}
+                >
+                  <TrendingUp className="w-5 h-5" />
+                </div>
                 Recommended Job Titles
               </h3>
               <div className="flex flex-wrap gap-2">
                 {analysis.suggestedJobTitles.map((title: string, index: number) => (
-                  <Badge key={index} className="bg-blue-100 text-blue-800">
+                  <Badge 
+                    key={index} 
+                    variant="outline"
+                    className="px-3 py-1"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'rgba(37, 99, 235, 0.1)',
+                      color: 'var(--accent)'
+                    }}
+                  >
                     {title}
                   </Badge>
                 ))}

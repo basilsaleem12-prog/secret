@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Job, Profile, Application } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { BookmarkButton } from '@/components/BookmarkButton'
@@ -27,7 +26,35 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-interface JobWithRelations extends Job {
+interface JobWithRelations {
+  id: string
+  title: string
+  type: string
+  description: string
+  requirements: string | null
+  duration: string | null
+  compensation: string | null
+  location: string | null
+  teamSize: string | null
+  tags: string[]
+  status: string
+  isDraft: boolean
+  isFilled: boolean
+  isPublished: boolean
+  views: number
+  applicationsCount: number
+  rejectionReason: string | null
+  createdAt: Date
+  updatedAt: Date
+  publishedAt: Date | null
+  approvedAt: Date | null
+  approvedBy: string | null
+  createdById: string
+  isPaid: boolean
+  paymentAmount: number | null
+  paymentCurrency: string
+  stripePaymentId: string | null
+  paidAt: Date | null
   createdBy: {
     id: string
     fullName: string | null
@@ -45,16 +72,27 @@ interface JobWithRelations extends Job {
   _count: {
     applications: number
   }
-  isPaid: boolean
-  paymentAmount: number | null
-  paymentCurrency: string
-  stripePaymentId: string | null
-  paidAt: Date | null
+}
+
+interface ProfileType {
+  id: string
+  userId: string
+  email: string | null
+  fullName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  skills: string[]
+  interests: string[]
+  role: string
+  department: string | null
+  year: string | null
+  createdAt: Date
+  updatedAt: Date
 }
 
 interface JobDetailClientProps {
   job: JobWithRelations
-  currentProfile: Profile
+  currentProfile: ProfileType
   initialBookmarked: boolean
   existingCallRequest?: {
     id: string
@@ -88,7 +126,7 @@ export function JobDetailClient({ job, currentProfile, initialBookmarked, existi
   const router = useRouter()
 
   const isOwner = job.createdById === currentProfile.id
-  const userApplication = job.applications[0]
+  const userApplication = Array.isArray(job.applications) && job.applications.length > 0 ? job.applications[0] : null
   const hasApplied = !!userApplication
 
   const handleApplicationSuccess = (): void => {
@@ -245,7 +283,7 @@ export function JobDetailClient({ job, currentProfile, initialBookmarked, existi
         </div>
 
         {/* Tags */}
-        {job.tags && job.tags.length > 0 && (
+        {Array.isArray(job.tags) && job.tags.length > 0 && (
           <div className="mb-6">
             <h3 className="font-semibold mb-3" style={{ color: 'var(--foreground)' }}>
               Skills & Tags
@@ -335,11 +373,15 @@ export function JobDetailClient({ job, currentProfile, initialBookmarked, existi
                   </h3>
                 </div>
                 <p className="mb-4" style={{ color: 'var(--foreground-muted)' }}>
-                  You applied on {new Date(userApplication.createdAt).toLocaleDateString()}
+                  {userApplication && (
+                    <>You applied on {new Date(userApplication.createdAt).toLocaleDateString()}</>
+                  )}
                 </p>
-                <Badge className={APPLICATION_STATUS_COLORS[userApplication.status]}>
-                  {userApplication.status}
-                </Badge>
+                {userApplication && (
+                  <Badge className={APPLICATION_STATUS_COLORS[userApplication.status]}>
+                    {userApplication.status}
+                  </Badge>
+                )}
               </div>
             ) : job.isFilled ? (
               <div className="text-center">

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Sparkles, Loader2 } from 'lucide-react';
-import ResumeAnalysisModal from './ResumeAnalysisModal';
 
 interface AnalyzeResumeButtonProps {
   resumeId: string;
@@ -38,8 +38,8 @@ export default function AnalyzeResumeButton({
   variant = 'outline',
   size = 'sm',
 }: AnalyzeResumeButtonProps): JSX.Element {
+  const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
-  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [error, setError] = useState<string>('');
 
   const analyzeResume = async (): Promise<void> => {
@@ -98,7 +98,7 @@ export default function AnalyzeResumeButton({
 
       // Validate response has required fields
       if (data.success && data.overallScore !== undefined) {
-        setAnalysis({
+        const analysisData: ResumeAnalysis = {
           summary: data.professionalSummary || '',
           detectedSkills: data.detectedSkills || [],
           experienceLevel: data.experienceLevel || 'N/A',
@@ -114,7 +114,19 @@ export default function AnalyzeResumeButton({
             professionalSummary: data.professionalBackground || data.professionalSummary || '',
             keyAchievements: data.keyAchievements || [],
           },
-        });
+        };
+
+        // Store analysis in sessionStorage and redirect to results page
+        try {
+          sessionStorage.setItem('resumeAnalysis', JSON.stringify(analysisData));
+          // Small delay to ensure sessionStorage is set before navigation
+          await new Promise(resolve => setTimeout(resolve, 50));
+          router.push(`/ai-results/resume-analysis?resumeId=${encodeURIComponent(resumeId)}&fileName=${encodeURIComponent(fileName)}`);
+        } catch (storageError) {
+          console.error('Failed to store analysis in sessionStorage:', storageError);
+          // Still redirect, but show error on page
+          router.push(`/ai-results/resume-analysis?resumeId=${encodeURIComponent(resumeId)}&fileName=${encodeURIComponent(fileName)}&error=storage_failed`);
+        }
       } else {
         console.error('Invalid API response:', data);
         throw new Error('Invalid response format from server - missing required fields');
@@ -130,35 +142,25 @@ export default function AnalyzeResumeButton({
   };
 
   return (
-    <>
-      <Button
-        onClick={analyzeResume}
-        disabled={loading}
-        variant={variant}
-        size={size}
-        className="flex items-center gap-2"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Analyzing...
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-4 h-4" />
-            AI Analysis
-          </>
-        )}
-      </Button>
-
-      {analysis && (
-        <ResumeAnalysisModal
-          analysis={analysis}
-          fileName={fileName}
-          onClose={() => setAnalysis(null)}
-        />
+    <Button
+      onClick={analyzeResume}
+      disabled={loading}
+      variant={variant}
+      size={size}
+      className="flex items-center gap-2"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Analyzing...
+        </>
+      ) : (
+        <>
+          <Sparkles className="w-4 h-4" />
+          AI Analysis
+        </>
       )}
-    </>
+    </Button>
   );
 }
 

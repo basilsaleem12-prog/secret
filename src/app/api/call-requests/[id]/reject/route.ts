@@ -119,7 +119,8 @@ export async function POST(
         callRequest.requester.fullName || 'User',
         profile.fullName || 'User',
         callRequest.job.title,
-        rejectReason || ''
+        rejectReason || '',
+        request
       ).catch(err => console.error('Failed to send video call rejected email:', err))
     }
 

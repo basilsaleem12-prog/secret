@@ -67,7 +67,7 @@ ${idx + 1}. JOB ID: ${job.id}
    Location: ${job.location || 'Not specified'}
    Description: ${job.description.substring(0, 300)}...
    Requirements: ${job.requirements || 'Not specified'}
-   Tags: ${job.tags.join(', ')}
+   Tags: ${Array.isArray(job.tags) ? job.tags.join(', ') : 'No tags'}
 `).join('\n')}
 
 Analyze ALL jobs and provide recommendations. Return your response in this EXACT JSON format:
@@ -168,7 +168,7 @@ function getFallbackRecommendations(
     });
 
     // Department/Year bonus
-    if (profile.department && job.tags.some(tag => 
+    if (profile.department && jobTags.some(tag => 
       tag.toLowerCase().includes(profile.department!.toLowerCase())
     )) {
       score += 10;

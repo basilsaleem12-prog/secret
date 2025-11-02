@@ -2,11 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isAdminEmail } from '@/lib/admin/config'
+import { getAppUrl } from '@/lib/utils/url'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
+
+  // Get the correct app URL for redirects
+  // Always prioritize NEXT_PUBLIC_APP_URL environment variable
+  const appUrl = getAppUrl(request)
+  
+  // Log for debugging (remove in production if needed)
+  console.log('🔗 OAuth callback - Using app URL:', appUrl)
+  console.log('🔗 OAuth callback - Request URL:', request.url)
+  console.log('🔗 OAuth callback - NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
 
   if (code) {
     const supabase = await createClient()
@@ -60,29 +70,12 @@ export async function GET(request: Request) {
           redirectPath = '/dashboard'
         }
 
-        const forwardedHost = request.headers.get('x-forwarded-host')
-        const isLocalEnv = process.env.NODE_ENV === 'development'
-        
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${redirectPath}`)
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`)
-        } else {
-          return NextResponse.redirect(`${origin}${redirectPath}`)
-        }
+        // Use getAppUrl to ensure correct redirect URL (handles HTTP/HTTPS and environment variables)
+        return NextResponse.redirect(`${appUrl}${redirectPath}`)
       } catch (dbError) {
         console.error('❌ Database error in OAuth callback:', dbError)
         // Still redirect even if profile creation fails
-        const forwardedHost = request.headers.get('x-forwarded-host')
-        const isLocalEnv = process.env.NODE_ENV === 'development'
-        
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}/create-profile`)
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}/create-profile`)
-        } else {
-          return NextResponse.redirect(`${origin}/create-profile`)
-        }
+        return NextResponse.redirect(`${appUrl}/create-profile`)
       }
     } else {
       console.error('❌ OAuth error:', error)
@@ -90,7 +83,7 @@ export async function GET(request: Request) {
   }
 
   // Return the user to login with error message
-  return NextResponse.redirect(`${origin}/login?error=oauth_failed`)
+  return NextResponse.redirect(`${appUrl}/login?error=oauth_failed`)
 }
 
 

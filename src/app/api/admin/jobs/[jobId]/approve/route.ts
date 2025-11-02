@@ -141,7 +141,8 @@ export async function POST(
           job.createdBy.email,
           job.createdBy.fullName || 'User',
           job.title,
-          rejectionReason || ''
+          rejectionReason || '',
+          request
         ).catch(err => console.error('Failed to send rejection email:', err))
       }
     }

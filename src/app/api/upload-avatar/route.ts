@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { uploadAvatar } from '@/lib/storage/avatars';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +13,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Get user profile
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
       );
     }
 
@@ -40,43 +54,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `avatar-${user.id}-${Date.now()}.${fileExt}`;
-    const storagePath = `${fileName}`;
-    const BUCKET_NAME = 'applicant';
-
-    // Upload to Supabase Storage
-    const { data, error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(storagePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type,
-      });
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return NextResponse.json(
-        { error: `Failed to upload file: ${uploadError.message}` },
-        { status: 500 }
-      );
+    // Upload to Supabase Storage using the same pattern as resumes
+    let uploadResult
+    try {
+      uploadResult = await uploadAvatar(file, profile.id)
+    } catch (error) {
+      console.error('Storage upload error:', error)
+      return NextResponse.json({ 
+        error: 'Failed to upload file to storage. Please try again.',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 })
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(storagePath);
-
     return NextResponse.json({ 
-      url: publicUrl,
-      message: 'File uploaded successfully' 
+      url: uploadResult.publicUrl,
+      storagePath: uploadResult.storagePath,
+      message: 'Avatar uploaded successfully to Supabase Storage',
+      storageLocation: `Bucket: umt-surge-bucket/avatars, Path: ${uploadResult.storagePath}`
     });
 
   } catch (error) {
     console.error('Avatar upload error:', error);
     return NextResponse.json(
-      { error: 'Failed to upload avatar' },
+      { error: 'Failed to upload avatar', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

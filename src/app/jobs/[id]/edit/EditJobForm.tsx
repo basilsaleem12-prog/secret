@@ -30,7 +30,7 @@ export function EditJobForm({ job }: EditJobFormProps) {
     compensation: job.compensation || '',
     location: job.location || '',
     teamSize: job.teamSize || '',
-    tags: job.tags.join(', '),
+    tags: Array.isArray(job.tags) ? job.tags.join(', ') : '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
